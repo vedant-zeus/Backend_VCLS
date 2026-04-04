@@ -8,34 +8,33 @@ dotenv.config();
 
 const app = express();
 
-/* ----------- CORS FIX ----------- */
+/* -------- CORS -------- */
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "https://v-one-kohl.vercel.app"  // ❌ removed trailing slash
+      "https://v-one-kohl.vercel.app"
     ],
-    credentials: true,
   })
 );
 
 app.use(express.json());
 
-/* ----------- MongoDB ----------- */
+/* -------- MONGODB -------- */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Error:", err));
+  .catch((err) => console.log("Mongo Error:", err));
 
-/* ----------- Health Check ----------- */
+/* -------- HEALTH CHECK -------- */
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
 
-/* ----------- Routes ----------- */
+/* -------- ROUTES -------- */
 app.use("/api/experiments", experimentRoutes);
 
-/* ----------- Server ----------- */
+/* -------- SERVER -------- */
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

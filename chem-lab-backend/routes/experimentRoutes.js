@@ -4,107 +4,89 @@ import PDFDocument from "pdfkit";
 
 const router = express.Router();
 
-/* -------------------- START EXPERIMENT -------------------- */
+/* -------- START -------- */
 router.post("/start", async (req, res) => {
   try {
     const experiment = new Experiment();
     await experiment.save();
+    console.log(`[START] Experiment started: ${experiment._id}`);
     res.status(201).json(experiment);
   } catch (error) {
+    console.error("[START] Error:", error.message);
     res.status(500).json({ message: error.message });
   }
 });
 
-/* -------------------- ADD STEP -------------------- */
-router.post("/step/:id", async (req, res) => {
+/* -------- BATCH ADD STEPS -------- */
+router.post("/batch-steps/:id", async (req, res) => {
   try {
-    const {
-      action,
-      chemical,
-      formula,
-      category,
-      temperature,
-      liquidColor,
-      reactionType,
-      equation,
-      precipitate,
-      gas,
-    } = req.body;
+    const { steps } = req.body;
+    if (!steps || !Array.isArray(steps)) {
+      return res.status(400).json({ message: "Steps array is required" });
+    }
 
     const experiment = await Experiment.findById(req.params.id);
 
-    if (!experiment) {
+    if (!experiment)
       return res.status(404).json({ message: "Experiment not found" });
-    }
 
-    experiment.steps.push({
-      action,
-      chemical,
-      formula,
-      category,
-      temperature,
-      liquidColor,
-      reactionType,
-      equation,
-      precipitate,
-      gas,
-    });
+    // validate steps if needed, for now trust the client structure but ensure it's an array
+    experiment.steps.push(...steps);
 
     await experiment.save();
+    console.log(`[BATCH] Added ${steps.length} steps to experiment: ${experiment._id}`);
+    res.json(experiment);
+  } catch (error) {
+    console.error("[BATCH] Error:", error.message);
+    res.status(500).json({ message: error.message });
+  }
+});
 
+/* -------- ADD STEP (LEGACY - KEEP FOR BACKWARD COMPAT) -------- */
+router.post("/step/:id", async (req, res) => {
+  try {
+    const experiment = await Experiment.findById(req.params.id);
+
+    if (!experiment)
+      return res.status(404).json({ message: "Experiment not found" });
+
+    experiment.steps.push(req.body);
+
+    await experiment.save();
     res.json(experiment);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
 
-/* -------------------- FINISH EXPERIMENT -------------------- */
+/* -------- FINISH -------- */
 router.post("/finish/:id", async (req, res) => {
   try {
-    const {
-      temperature,
-      liquidColor,
-      solutes,
-      reactionType,
-      equation,
-      precipitate,
-      gas,
-    } = req.body;
-
     const experiment = await Experiment.findById(req.params.id);
 
-    if (!experiment) {
+    if (!experiment)
       return res.status(404).json({ message: "Experiment not found" });
-    }
 
-    experiment.finalState = {
-      temperature,
-      liquidColor,
-      solutes,
-      reactionType,
-      equation,
-      precipitate,
-      gas,
-    };
-
+    experiment.finalState = req.body;
     experiment.endTime = new Date();
 
     await experiment.save();
 
+    console.log(`[FINISH] Experiment finished: ${experiment._id}`);
     res.json({ message: "Experiment finished", experiment });
   } catch (error) {
+    console.error("[FINISH] Error:", error.message);
     res.status(500).json({ message: error.message });
   }
 });
 
-/* -------------------- GENERATE PDF REPORT -------------------- */
+/* -------- PDF REPORT -------- */
 router.get("/report/:id", async (req, res) => {
   try {
     const experiment = await Experiment.findById(req.params.id);
 
-    if (!experiment) {
+    if (!experiment)
       return res.status(404).json({ message: "Experiment not found" });
-    }
 
     const doc = new PDFDocument();
 
@@ -116,82 +98,55 @@ router.get("/report/:id", async (req, res) => {
 
     doc.pipe(res);
 
-    /* ---------- TITLE ---------- */
     doc.fontSize(20).text("Virtual Chemistry Lab Report", {
       align: "center",
     });
 
     doc.moveDown();
     doc.fontSize(12);
-    doc.text(`Start Time: ${experiment.startTime}`);
-    doc.text(`End Time: ${experiment.endTime}`);
+    doc.text(`Start Time: ${experiment.startTime ? new Date(experiment.startTime).toLocaleString() : 'N/A'}`);
+    doc.text(`End Time: ${experiment.endTime ? new Date(experiment.endTime).toLocaleString() : 'N/A'}`);
 
     doc.moveDown();
-    doc.text("--------------------------------------------------");
+    doc.text("Steps:");
 
-    /* ---------- STEPS ---------- */
-    doc.moveDown();
-    doc.fontSize(14).text("Steps Performed:");
+    if (experiment.steps && experiment.steps.length > 0) {
+      experiment.steps.forEach((step, i) => {
+        doc.moveDown(0.5);
+        doc.text(`${i + 1}. ${step.action || 'Unknown Action'}`);
+        doc.text(`   Chemical: ${step.chemical || '-'}`);
+        doc.text(`   Formula: ${step.formula || "-"}`);
+        doc.text(`   Category: ${step.category || "-"}`);
+        doc.text(`   Temp: ${step.temperature}°C`);
 
-    experiment.steps.forEach((step, index) => {
-      doc.moveDown(0.5);
-      doc.fontSize(12).text(
-        `${index + 1}. ${step.action.toUpperCase()}`
-      );
-      doc.text(`   Chemical: ${step.chemical}`);
-      doc.text(`   Formula: ${step.formula || "-"}`);
-      doc.text(`   Category: ${step.category || "-"}`);
-      doc.text(`   Temperature: ${step.temperature}°C`);
+        if (step.equation)
+          doc.text(`   Equation: ${step.equation}`);
 
-      if (step.reactionType) {
-        doc.text(`   Reaction Type: ${step.reactionType}`);
-      }
+        if (step.precipitate)
+          doc.text("   Observation: Precipitate formed");
 
-      if (step.equation) {
-        doc.text(`   Equation: ${step.equation}`);
-      }
-
-      if (step.precipitate) {
-        doc.text("   Observation: Precipitate formed");
-      }
-
-      if (step.gas) {
-        doc.text("   Observation: Gas evolved");
-      }
-    });
-
-    /* ---------- FINAL STATE ---------- */
-    doc.moveDown();
-    doc.text("--------------------------------------------------");
-
-    doc.moveDown();
-    doc.fontSize(14).text("Final State:");
-
-    doc.fontSize(12);
-    doc.text(`Final Temperature: ${experiment.finalState.temperature}°C`);
-    doc.text(`Final Color: ${experiment.finalState.liquidColor}`);
-    doc.text(
-      `Solutes Present: ${experiment.finalState.solutes?.join(", ")}`
-    );
-
-    if (experiment.finalState.reactionType) {
-      doc.text(`Final Reaction Type: ${experiment.finalState.reactionType}`);
+        if (step.gas)
+          doc.text("   Observation: Gas evolved");
+      });
+    } else {
+      doc.text("No steps recorded.");
     }
 
-    if (experiment.finalState.equation) {
-      doc.text(`Balanced Equation: ${experiment.finalState.equation}`);
-    }
-
-    if (experiment.finalState.precipitate) {
-      doc.text("Final Observation: Precipitate formed");
-    }
-
-    if (experiment.finalState.gas) {
-      doc.text("Final Observation: Gas evolved");
+    doc.moveDown();
+    doc.text("Final State:");
+    if (experiment.finalState) {
+        doc.text(`Temperature: ${experiment.finalState.temperature}°C`);
+        doc.text(`Color: ${experiment.finalState.liquidColor}`);
+        doc.text(
+        `Solutes: ${experiment.finalState.solutes?.join(", ") || "None"}`
+        );
+    } else {
+        doc.text("No final state recorded.");
     }
 
     doc.end();
   } catch (error) {
+    console.error("[REPORT] Error:", error.message);
     res.status(500).json({ message: error.message });
   }
 });

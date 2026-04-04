@@ -1,72 +1,30 @@
 import mongoose from "mongoose";
 
-/* ------------------- STEP SCHEMA ------------------- */
-/*
-Each action during experiment:
-- add_solvent
-- add_solute
-- reaction_triggered
-*/
-
 const stepSchema = new mongoose.Schema(
   {
     action: {
       type: String,
-      required: true,
       enum: ["add_solvent", "add_solute", "reaction_triggered"],
-    },
-
-    chemical: {
-      type: String,
       required: true,
     },
 
-    formula: {
-      type: String,
-    },
+    chemical: { type: String, required: true },
+    formula: { type: String },
+    category: { type: String, enum: ["acid", "base", "salt", "solvent"] },
 
-    category: {
-      type: String,
-      enum: ["acid", "base", "salt", "solvent"],
-    },
+    temperature: { type: Number, required: true },
+    liquidColor: { type: String, required: true },
 
-    temperature: {
-      type: Number,
-      required: true,
-    },
+    reactionType: { type: String },
+    equation: { type: String },
+    precipitate: { type: Boolean, default: false },
+    gas: { type: Boolean, default: false },
 
-    liquidColor: {
-      type: String,
-      required: true,
-    },
-
-    reactionType: {
-      type: String,
-    },
-
-    equation: {
-      type: String,
-    },
-
-    precipitate: {
-      type: Boolean,
-      default: false,
-    },
-
-    gas: {
-      type: Boolean,
-      default: false,
-    },
-
-    timestamp: {
-      type: Date,
-      default: Date.now,
-    },
+    timestamp: { type: Date, default: Date.now },
   },
   { _id: false }
 );
 
-/* ------------------- MAIN EXPERIMENT SCHEMA ------------------- */
 const experimentSchema = new mongoose.Schema({
   startTime: {
     type: Date,
@@ -79,39 +37,16 @@ const experimentSchema = new mongoose.Schema({
   },
 
   finalState: {
-    temperature: {
-      type: Number,
-    },
-
-    liquidColor: {
-      type: String,
-    },
-
-    solutes: {
-      type: [String],
-      default: [],
-    },
-
-    reactionType: {
-      type: String,
-    },
-
-    equation: {
-      type: String,
-    },
-
-    precipitate: {
-      type: Boolean,
-    },
-
-    gas: {
-      type: Boolean,
-    },
+    temperature: Number,
+    liquidColor: String,
+    solutes: [String],
+    reactionType: String,
+    equation: String,
+    precipitate: Boolean,
+    gas: Boolean,
   },
 
-  endTime: {
-    type: Date,
-  },
+  endTime: Date,
 });
 
 export default mongoose.model("Experiment", experimentSchema);
