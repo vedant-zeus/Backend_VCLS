@@ -11,10 +11,14 @@ const app = express();
 /* -------- CORS -------- */
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "https://v-one-kohl.vercel.app"
-    ],
+    origin: (origin, callback) => {
+      // Allow any localhost origin, or the specific Vercel URL
+      if (!origin || origin.startsWith("http://localhost:") || origin === "https://v-one-kohl.vercel.app") {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
   })
 );
 
