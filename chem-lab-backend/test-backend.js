@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 
-const API_URL = 'http://localhost:10000/api/experiments';
+const API_URL = 'https://backend-chem-lab.onrender.com/api/experiments';
 
 async function runTest() {
   try {
