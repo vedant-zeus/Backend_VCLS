@@ -13,7 +13,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       // Allow any localhost origin, or the specific Vercel URL
-      if (!origin || origin.startsWith("http://localhost:") || origin === "https://v-one-kohl.vercel.app") {
+      if (!origin || origin.startsWith("http://localhost:") || origin === "https://virtual-chem-laboratory.vercel.app/") {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
